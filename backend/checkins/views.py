@@ -1,4 +1,7 @@
 from rest_framework import permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
 
 from social.permissions import hidden_user_ids
 
@@ -29,3 +32,14 @@ class CheckInViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def set_cover(self, request, pk=None):
+        """Define este check-in como a capa do drink no catálogo do próprio usuário."""
+        checkin = self.get_object()
+        if checkin.user_id != request.user.id:
+            raise PermissionDenied("Só o dono do check-in pode escolher a capa.")
+        CheckIn.objects.filter(user=request.user, drink_id=checkin.drink_id, is_cover=True).update(is_cover=False)
+        checkin.is_cover = True
+        checkin.save(update_fields=["is_cover"])
+        return Response(self.get_serializer(checkin).data)

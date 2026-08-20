@@ -9,12 +9,16 @@ class Profile(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )
     bio = models.CharField(max_length=280, blank=True)
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     avatar_url = models.URLField(blank=True)
     is_private = models.BooleanField(
         default=False,
         help_text="Se True, apenas amigos aceitos podem ver o catálogo deste usuário.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["user__username"]
 
     def __str__(self):
         return f"Perfil de {self.user.username}"

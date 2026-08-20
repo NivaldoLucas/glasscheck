@@ -30,13 +30,23 @@ class CheckIn(models.Model):
         related_name="checkins",
     )
 
-    photo_url = models.URLField()
+    photo = models.ImageField(upload_to="checkins/", blank=True, null=True)
+    photo_url = models.URLField(
+        blank=True,
+        help_text="Usada quando a foto vem de uma busca automática (web) em vez de upload direto.",
+    )
     photo_source = models.CharField(max_length=10, choices=PHOTO_SOURCE_CHOICES, default="user")
 
     rating = models.PositiveSmallIntegerField(
         null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(5)]
     )
     comment = models.TextField(max_length=1000, blank=True)
+
+    is_cover = models.BooleanField(
+        default=False,
+        help_text="Foto escolhida pelo usuário como capa deste drink no catálogo. "
+        "Único por (user, drink) — reforçado em CheckInViewSet.set_cover.",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1,9 +1,7 @@
-from rest_framework import generics, permissions, viewsets
+from rest_framework import filters, generics, permissions, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from social.permissions import hidden_user_ids
 
 from .models import Profile
 from .serializers import ProfileSerializer, RegisterSerializer
@@ -28,20 +26,28 @@ class MeView(APIView):
 
     def get(self, request):
         profile, _ = Profile.objects.get_or_create(user=request.user)
-        return Response(ProfileSerializer(profile).data)
+        return Response(ProfileSerializer(profile, context={"request": request}).data)
+
+    def patch(self, request):
+        """Permite ao usuário editar bio/avatar e alternar a privacidade do próprio perfil."""
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        serializer = ProfileSerializer(profile, data=request.data, partial=True, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class ProfileViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Perfis consultáveis por outros usuários (para telas de perfil).
-    Perfis privados ficam de fora da queryset para quem não é o dono nem
-    amigo aceito — resulta em 404 na consulta direta, sem confirmar
-    a existência do perfil.
+    Perfis consultáveis/buscáveis por outros usuários (para busca de pessoas e
+    telas de perfil). A privacidade do perfil não afasta ele da busca — apenas
+    o catálogo de check-ins fica de fora para quem não é dono nem amigo aceito
+    (ver CheckInViewSet e social.permissions.hidden_user_ids). Isso permite
+    encontrar e enviar pedido de amizade para uma conta privada, como no
+    Instagram.
     """
 
+    queryset = Profile.objects.select_related("user")
     serializer_class = ProfileSerializer
-
-    def get_queryset(self):
-        return Profile.objects.exclude(
-            user_id__in=hidden_user_ids(self.request.user)
-        ).select_related("user")
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["user__username"]

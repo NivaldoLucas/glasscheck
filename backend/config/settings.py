@@ -64,7 +64,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Banco de dados — Postgres em produção (via .env), SQLite como fallback local.
 # DB_ENGINE em branco/ausente cai sempre no sqlite com nome fixo, ignorando
-# DB_NAME/USER/... que podem ter sobrado no .env de um setup Postgres.
+# POSTGRES_*/... que podem ter sobrado no .env de um setup Postgres.
+# Os nomes POSTGRES_DB/USER/PASSWORD são os mesmos exigidos pela imagem oficial
+# do Postgres — o serviço "db" do docker-compose lê o mesmo backend/.env, então
+# usar os nomes dela aqui evita ter senha duplicada (e divergente) em dois lugares.
 DB_ENGINE = config("DB_ENGINE", default="django.db.backends.sqlite3") or "django.db.backends.sqlite3"
 
 if DB_ENGINE == "django.db.backends.sqlite3":
@@ -73,9 +76,9 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": DB_ENGINE,
-            "NAME": config("DB_NAME", default="glasscheck"),
-            "USER": config("DB_USER", default=""),
-            "PASSWORD": config("DB_PASSWORD", default=""),
+            "NAME": config("POSTGRES_DB", default="glasscheck"),
+            "USER": config("POSTGRES_USER", default=""),
+            "PASSWORD": config("POSTGRES_PASSWORD", default=""),
             "HOST": config("DB_HOST", default=""),
             "PORT": config("DB_PORT", default=""),
         }
@@ -94,6 +97,9 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS — libera o frontend separado (web e, futuramente, o app mobile) a consumir a API.
@@ -114,5 +120,6 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
 }
 
-# Webhook do N8N para automações com IA (busca de foto, sugestão de deduplicação).
-N8N_WEBHOOK_BASE_URL = config("N8N_WEBHOOK_BASE_URL", default="http://n8n:5678/webhook")
+# Webhook de uma instância N8N externa (fora deste projeto) para automações com IA
+# (busca de foto, sugestão de deduplicação).
+N8N_WEBHOOK_BASE_URL = config("N8N_WEBHOOK_BASE_URL", default="")
