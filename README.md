@@ -104,9 +104,10 @@ nem de configurar cada container manualmente.
    `POSTGRES_*`). **`DB_ENGINE` não pode ficar em branco aqui** — em branco
    cai pro sqlite silenciosamente, sem erro, e os dados não persistem direito
    entre deploys. Não precisa criar o arquivo `.env` manualmente no servidor.
-4. Antes de deployar, **remova o bloco `ports: ["80:80"]`** do serviço `nginx`
-   no `docker-compose.yml` (ou apague direto no editor do EasyPanel) — a
-   plataforma já ocupa a porta 80 com o proxy dela.
+4. O `docker-compose.yml` já **não publica a porta 80** (de propósito — o
+   EasyPanel usa a dele). Se aparecer o erro `port is already allocated`, é
+   sinal de que uma versão antiga com `ports: ["80:80"]` ainda está no ar;
+   puxe o commit mais recente e faça redeploy.
 5. Depois do deploy, vá em **Domains** do serviço e adicione um domínio
    apontando pro serviço `nginx`, porta `80`. O EasyPanel deve provisionar
    HTTPS automaticamente a partir daí.
@@ -140,6 +141,16 @@ No `.env` da VPS (raiz do repo), ajuste:
 - `DB_ENGINE=django.db.backends.postgresql` + `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` (senha forte, diferente do exemplo)
 - `CORS_ALLOWED_ORIGINS` não precisa mudar — o frontend buildado fala com a API
   pelo mesmo domínio (`/api`), sem CORS envolvido
+
+O `docker-compose.yml` não publica a porta 80 por padrão (pensado pra rodar
+atrás de um proxy tipo o do EasyPanel). Numa VPS crua, sem nada na frente,
+adicione de volta no serviço `nginx`:
+
+```yaml
+  nginx:
+    ports:
+      - "80:80"
+```
 
 ```bash
 # 4. suba tudo
