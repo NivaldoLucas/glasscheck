@@ -18,6 +18,14 @@ ALLOWED_HOSTS = config("DJANGO_ALLOWED_HOSTS", default="localhost,127.0.0.1", ca
 # com o domínio já liberado em ALLOWED_HOSTS.
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 
+# O gunicorn só enxerga HTTP puro (o nginx é quem termina o HTTPS na frente).
+# Sem isto, request.is_secure() retorna False mesmo em produção — e a checagem
+# de CSRF compara a Origin (https://...) contra um esquema errado (http://...)
+# internamente, rejeitando o request mesmo com CSRF_TRUSTED_ORIGINS certo.
+# O nginx.conf deste projeto já envia X-Forwarded-Proto — só falta o Django
+# confiar nele.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
