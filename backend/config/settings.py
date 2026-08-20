@@ -12,6 +12,12 @@ SECRET_KEY = config("DJANGO_SECRET_KEY", default="django-insecure-change-me-in-p
 DEBUG = config("DJANGO_DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = config("DJANGO_ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
+# Necessário à parte de ALLOWED_HOSTS: o Django exige a origem completa (com
+# esquema) numa lista própria pra aceitar POSTs de formulário com sessão —
+# usado pelo /admin/. Sem isso, login no admin por HTTPS dá 403 CSRF mesmo
+# com o domínio já liberado em ALLOWED_HOSTS.
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
