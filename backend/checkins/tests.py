@@ -119,6 +119,47 @@ class CheckInTests(APITestCase):
         response = self.client.post(reverse("checkin-set-cover", args=[checkin.id]))
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_owner_can_edit_own_checkin(self):
+        self._auth(self.user)
+        checkin = CheckIn.objects.create(user=self.user, drink=self.drink, photo_url="https://example.com/a.jpg", rating=3)
+
+        response = self.client.patch(
+            reverse("checkin-detail", args=[checkin.id]), {"rating": 5, "comment": "melhor na segunda vez"}
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        checkin.refresh_from_db()
+        self.assertEqual(checkin.rating, 5)
+        self.assertEqual(checkin.comment, "melhor na segunda vez")
+
+    def test_stranger_cannot_edit_others_checkin(self):
+        other = User.objects.create_user("davi3", password="senha12345")
+        Profile.objects.create(user=other)
+        checkin = CheckIn.objects.create(user=self.user, drink=self.drink, photo_url="https://example.com/a.jpg", rating=3)
+
+        self._auth(other)
+        response = self.client.patch(reverse("checkin-detail", args=[checkin.id]), {"rating": 1})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        checkin.refresh_from_db()
+        self.assertEqual(checkin.rating, 3)
+
+    def test_owner_can_delete_own_checkin(self):
+        self._auth(self.user)
+        checkin = CheckIn.objects.create(user=self.user, drink=self.drink, photo_url="https://example.com/a.jpg")
+
+        response = self.client.delete(reverse("checkin-detail", args=[checkin.id]))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(CheckIn.objects.filter(id=checkin.id).exists())
+
+    def test_stranger_cannot_delete_others_checkin(self):
+        other = User.objects.create_user("davi4", password="senha12345")
+        Profile.objects.create(user=other)
+        checkin = CheckIn.objects.create(user=self.user, drink=self.drink, photo_url="https://example.com/a.jpg")
+
+        self._auth(other)
+        response = self.client.delete(reverse("checkin-detail", args=[checkin.id]))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(CheckIn.objects.filter(id=checkin.id).exists())
+
 
 class CheckInPrivacyTests(APITestCase):
     def setUp(self):

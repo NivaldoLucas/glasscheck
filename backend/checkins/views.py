@@ -1,12 +1,20 @@
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from social.permissions import hidden_user_ids
 
 from .models import CheckIn
 from .serializers import CheckInSerializer
+
+
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    """Só o dono do check-in pode editar (PATCH/PUT) ou apagar (DELETE) ele."""
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return obj.user_id == request.user.id
 
 
 class CheckInViewSet(viewsets.ModelViewSet):
@@ -19,7 +27,7 @@ class CheckInViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = CheckInSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         queryset = CheckIn.objects.select_related("drink", "establishment", "user").exclude(
@@ -36,9 +44,7 @@ class CheckInViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def set_cover(self, request, pk=None):
         """Define este check-in como a capa do drink no catálogo do próprio usuário."""
-        checkin = self.get_object()
-        if checkin.user_id != request.user.id:
-            raise PermissionDenied("Só o dono do check-in pode escolher a capa.")
+        checkin = self.get_object()  # já aplica IsOwnerOrReadOnly (POST não é SAFE_METHOD)
         CheckIn.objects.filter(user=request.user, drink_id=checkin.drink_id, is_cover=True).update(is_cover=False)
         checkin.is_cover = True
         checkin.save(update_fields=["is_cover"])
