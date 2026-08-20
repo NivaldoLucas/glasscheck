@@ -122,10 +122,17 @@ CORS_ALLOWED_ORIGINS = config(
 )
 
 # Django REST Framework
+# Só TokenAuthentication de propósito — o app web usa exclusivamente token.
+# SessionAuthentication ficava aqui só por conveniência da API navegável do
+# DRF, mas causa um problema real em produção: se o mesmo navegador tiver
+# uma sessão ativa do /admin/ (cookie de sessão do Django, nada a ver com
+# o token do app), toda chamada de API passa a exigir CSRF por causa dessa
+# sessão "estranha" — mesmo em rotas como /api/auth/login/ que nunca deveriam
+# depender de sessão. /admin/ continua funcionando normalmente, pois usa a
+# sessão do Django direto, sem passar por aqui.
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
