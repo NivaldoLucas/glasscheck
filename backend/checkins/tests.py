@@ -1,0 +1,85 @@
+from django.contrib.auth.models import User
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.authtoken.models import Token
+from rest_framework.test import APITestCase
+
+from accounts.models import Profile
+from drinks.models import Drink
+from social.models import Friendship
+
+from .models import CheckIn
+
+
+class CheckInTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("carla", password="senha12345")
+        Profile.objects.create(user=self.user)
+        self.drink = Drink.objects.create(name="Caipirinha")
+        self.token = Token.objects.create(user=self.user)
+
+    def _auth(self, user):
+        token, _ = Token.objects.get_or_create(user=user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+    def test_anonymous_cannot_create_checkin(self):
+        response = self.client.post(
+            reverse("checkin-list"),
+            {"drink": self.drink.id, "photo_url": "https://example.com/a.jpg"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_checkin_assigns_authenticated_user(self):
+        self._auth(self.user)
+        response = self.client.post(
+            reverse("checkin-list"),
+            {"drink": self.drink.id, "photo_url": "https://example.com/a.jpg", "rating": 4},
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        checkin = CheckIn.objects.get(id=response.data["id"])
+        self.assertEqual(checkin.user, self.user)
+
+    def test_checkins_filtered_by_user_param(self):
+        other = User.objects.create_user("davi", password="senha12345")
+        Profile.objects.create(user=other)
+        CheckIn.objects.create(user=self.user, drink=self.drink, photo_url="https://example.com/a.jpg")
+        CheckIn.objects.create(user=other, drink=self.drink, photo_url="https://example.com/b.jpg")
+
+        response = self.client.get(reverse("checkin-list"), {"user": self.user.id})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [c["user"] for c in response.data["results"]]
+        self.assertEqual(ids, [self.user.id])
+
+
+class CheckInPrivacyTests(APITestCase):
+    def setUp(self):
+        self.drink = Drink.objects.create(name="Negroni")
+        self.owner = User.objects.create_user("erica", password="senha12345")
+        Profile.objects.create(user=self.owner, is_private=True)
+        CheckIn.objects.create(user=self.owner, drink=self.drink, photo_url="https://example.com/c.jpg")
+
+        self.stranger = User.objects.create_user("fabio", password="senha12345")
+        Profile.objects.create(user=self.stranger)
+
+        self.friend = User.objects.create_user("gabi", password="senha12345")
+        Profile.objects.create(user=self.friend)
+        Friendship.objects.create(from_user=self.friend, to_user=self.owner, status="accepted")
+
+    def _auth(self, user):
+        token, _ = Token.objects.get_or_create(user=user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+    def test_private_user_checkins_hidden_from_stranger(self):
+        self._auth(self.stranger)
+        response = self.client.get(reverse("checkin-list"))
+        self.assertEqual(response.data["results"], [])
+
+    def test_private_user_checkins_visible_to_friend(self):
+        self._auth(self.friend)
+        response = self.client.get(reverse("checkin-list"))
+        self.assertEqual(len(response.data["results"]), 1)
+
+    def test_private_user_checkins_visible_to_owner(self):
+        self._auth(self.owner)
+        response = self.client.get(reverse("checkin-list"))
+        self.assertEqual(len(response.data["results"]), 1)
