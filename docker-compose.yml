@@ -23,6 +23,12 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    # Publica a porta 80 no host — necessário para "docker compose up" direto
+    # numa VPS crua. No EasyPanel (ou qualquer plataforma com proxy próprio,
+    # tipo Traefik/Coolify), REMOVA este bloco "ports" e, em vez disso,
+    # configure um Domain apontando pro serviço "nginx", porta 80 — evita
+    # conflito com a porta 80 que a própria plataforma já usa, e normalmente
+    # já ganha HTTPS automático de brinde.
     ports:
       - "80:80"
     volumes:

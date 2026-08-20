@@ -70,7 +70,31 @@ variáveis (`POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD`) são exatamente o
 que a imagem oficial do Postgres espera, evitando senha divergente em dois
 lugares.
 
-## Deploy numa VPS
+## Deploy numa VPS com EasyPanel
+
+O EasyPanel tem um tipo de serviço **Compose** feito exatamente pra isso — builda
+os 3 serviços direto do `docker-compose.yml` do repo, sem precisar de Docker Hub
+nem de configurar cada container manualmente.
+
+1. No EasyPanel, crie um novo serviço do tipo **Compose** (não "App").
+2. Aponte pro repositório GitHub (`owner/repo`), branch `main`, build path `/`,
+   arquivo `docker-compose.yml`.
+3. O EasyPanel detecta o `backend/.env.example` automaticamente e abre um editor
+   de variáveis — preencha com os mesmos valores da seção "Configure o `.env`"
+   abaixo (`DJANGO_SECRET_KEY`, `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS`,
+   `POSTGRES_*`). Não precisa criar o arquivo `.env` manualmente no servidor.
+4. Antes de deployar, **remova o bloco `ports: ["80:80"]`** do serviço `nginx`
+   no `docker-compose.yml` (ou apague direto no editor do EasyPanel) — a
+   plataforma já ocupa a porta 80 com o proxy dela.
+5. Depois do deploy, vá em **Domains** do serviço e adicione um domínio
+   apontando pro serviço `nginx`, porta `80`. O EasyPanel deve provisionar
+   HTTPS automaticamente a partir daí.
+6. Pra criar o superusuário, use o terminal/console do serviço `backend` no
+   próprio EasyPanel e rode `python manage.py createsuperuser`.
+
+Cada `git push` na branch configurada dispara um novo build automaticamente.
+
+## Deploy manual numa VPS (sem EasyPanel)
 
 Pré-requisito na VPS: Docker + Docker Compose instalados (`curl -fsSL
 https://get.docker.com | sh` funciona na maioria das distros).
